@@ -4214,9 +4214,6 @@ class ContentRouter(Transform):
                         compressed = bool_result.compressed
                         compressed_tokens = bool_result.compressed_tokens
                         decision_reason = f"boolean_{bool_result.strategy}"
-                        from .boolean_compressor import _fire_telemetry
-
-                        _fire_telemetry(bool_result)
                 if compressed is None:
                     # Fallback to Kompress when boolean-algebra-engine unavailable
                     compressed, compressed_tokens = self._try_ml_compressor(
@@ -4237,9 +4234,6 @@ class ContentRouter(Transform):
                         compressed = bool_result.compressed
                         compressed_tokens = bool_result.compressed_tokens
                         decision_reason = "nl_boolean"
-                        from .boolean_compressor import _fire_telemetry
-
-                        _fire_telemetry(bool_result)
                 if compressed is None:
                     compressed, compressed_tokens = self._try_ml_compressor(
                         content, context, question

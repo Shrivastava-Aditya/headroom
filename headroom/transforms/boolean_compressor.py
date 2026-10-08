@@ -70,10 +70,6 @@ def _normalise(expr: str) -> str:
 
 # ── Truth table parsing ───────────────────────────────────────────────────────
 
-_BINARY_ROW = re.compile(r"^[\s|]*([01][\s|]+)+[01][\s|]*$")
-_MD_HEADER = re.compile(r"^\|?\s*([A-Za-z_]\w*\s*\|?\s*)+$")
-_VAR_EXTRACT = re.compile(r"[A-Za-z_]\w*")
-
 
 @dataclass
 class _ParsedTable:
