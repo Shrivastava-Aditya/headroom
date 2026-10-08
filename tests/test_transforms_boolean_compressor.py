@@ -596,3 +596,57 @@ def test_router_boolean_strategy_mapped(monkeypatch: pytest.MonkeyPatch) -> None
         router._strategy_from_detection_type(ContentType.NL_BOOLEAN_LOGIC)
         is CompressionStrategy.NL_BOOLEAN
     )
+
+
+@pytest.mark.parametrize("entrypoint", ["structured", "nl_anthropic", "nl_openai"])
+def test_real_engine_cold_import_performs_no_telemetry(tmp_path, entrypoint) -> None:
+    import importlib.util
+    import os
+    import subprocess
+    import sys
+    import textwrap
+
+    if importlib.util.find_spec("boolean_algebra_engine") is None:
+        pytest.skip("optional boolean engine is not installed")
+    env = dict(os.environ)
+    env.pop("BOOLCALC_NO_TELEMETRY", None)
+    env["XDG_CONFIG_HOME"] = str(tmp_path / "engine-config")
+    env["BOOLEAN_TEST_ENTRYPOINT"] = entrypoint
+    if entrypoint.startswith("nl_"):
+        env.pop("ANTHROPIC_API_KEY", None)
+        env.pop("OPENAI_API_KEY", None)
+        provider_key = "ANTHROPIC_API_KEY" if entrypoint == "nl_anthropic" else "OPENAI_API_KEY"
+        env[provider_key] = "cold-import-test-key"
+    script = textwrap.dedent(
+        """
+        import threading
+        import urllib.request
+
+        def forbidden(*args, **kwargs):
+            raise AssertionError("Boolean compression must not start telemetry or network access")
+
+        threading.Thread.start = forbidden
+        urllib.request.urlopen = forbidden
+
+        import os
+        from headroom.transforms.boolean_compressor import BooleanCompressor, _detect_provider
+        if os.environ["BOOLEAN_TEST_ENTRYPOINT"].startswith("nl_"):
+            assert _detect_provider() is not None
+        result = BooleanCompressor().compress("(A AND B) OR (A AND NOT B)")
+        assert result is not None
+        assert result.compressed.splitlines()[-1] == "A", result
+        from boolean_algebra_engine import evaluate
+        table, _ = evaluate("(A.B)+(A.!B)")
+        assert len(table.rows) == 4
+        assert all(row.output == row.inputs["A"] for row in table.rows)
+        """
+    )
+    result = subprocess.run(
+        [sys.executable, "-c", script],
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert not (tmp_path / "engine-config" / "boolcalc").exists()

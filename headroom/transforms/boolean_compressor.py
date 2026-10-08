@@ -39,6 +39,11 @@ if TYPE_CHECKING:
     pass
 
 
+def _disable_engine_telemetry() -> None:
+    """Suppress the optional engine's install analytics before its cold import."""
+    os.environ["BOOLCALC_NO_TELEMETRY"] = "1"
+
+
 # ── Notation normalisation ────────────────────────────────────────────────────
 
 # Order matters: longer patterns before shorter ones
@@ -188,6 +193,7 @@ class BooleanCompressor:
             minimal = "1"
         else:
             try:
+                _disable_engine_telemetry()
                 from boolean_algebra_engine import synthesize
                 from boolean_algebra_engine.core.models import TruthTable, TruthTableRow
 
@@ -251,6 +257,7 @@ class BooleanCompressor:
             return None
 
         try:
+            _disable_engine_telemetry()
             from boolean_algebra_engine import evaluate, synthesize
 
             table, _ = evaluate(normalised)
@@ -310,6 +317,7 @@ def _looks_like_nl_logic(content: str) -> bool:
 def _detect_provider() -> Any | None:
     """Return an NL provider if a supported API key is set, else None."""
     try:
+        _disable_engine_telemetry()
         from boolean_algebra_engine.nl.nl import AnthropicProvider, OpenAIProvider
 
         if os.environ.get("ANTHROPIC_API_KEY"):
@@ -342,6 +350,7 @@ class NLBooleanCompressor:
             logger.debug("NLBooleanCompressor: no API key configured — skipping")
             return None
         try:
+            _disable_engine_telemetry()
             from boolean_algebra_engine.nl.nl import ask
 
             result = ask(content.strip(), provider=provider)
